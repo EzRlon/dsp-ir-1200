@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RLONMUSIC DSP-IR 1200 · 脉冲响应生成器</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230e0f11'/%3E%3Ctext x='1' y='13' font-size='12' fill='%23ffb000' font-family='monospace'%3ER%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Share+Tech+Mono&display=swap">
+<style>
+/* ============================================================
+   RLONMUSIC DSP-IR 1200 — Classic Audio Gear 复古专业机架
+   ============================================================ */
+:root{
+  --bg:#0e0f11;
+  --rack:#141619;
+  --panel:#1b1d21;
+  --panel-top:#24272c;
+  --panel-line:#0a0b0d;
+  --steel:#2e3238;
+  --steel2:#41464e;
+  --bezel:#101216;
+  --amber:#ffb000;
+  --amber-hi:#ffcf5e;
+  --amber-dim:#6b4d09;
+  --green:#a8ff60;
+  --green-dim:#2c4a1c;
+  --red:#ff4d3d;
+  --red-dim:#57120c;
+  --text:#c8ccd2;
+  --dim:#767b84;
+  --lcd-bg:#060b07;
+  --lcd-line:#1d3320;
+  --track:#101216;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:
+    radial-gradient(1200px 500px at 50% -10%, #1a1d22 0%, #0e0f11 60%),
+    var(--bg);
+  color:var(--text);
+  font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:12px;
+  line-height:1.45;
+  min-height:100vh;
+  padding:14px 16px 40px;
+}
+.grain{
+  position:fixed;inset:0;pointer-events:none;z-index:99;opacity:.045;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.mono{font-family:"Share Tech Mono","Consolas","Courier New",monospace}
+.wrap{max-width:1320px;margin:0 auto}
+
+/* ---------- 面板通用（金属拉丝 + 四角螺丝） ---------- */
+.panel{
+  position:relative;
+  background:linear-gradient(180deg,var(--panel-top) 0%,var(--panel) 34%,var(--panel) 100%);
+  border:1px solid var(--panel-line);
+  border-radius:5px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.055), inset 0 -1px 0 rgba(0,0,0,.55), 0 3px 8px rgba(0,0,0,.5);
+  padding:10px 11px 11px;
+}
+.panel::before,.panel::after{
+  content:"";position:absolute;left:6px;right:6px;top:5px;bottom:5px;pointer-events:none;
+  background:
+    radial-gradient(circle at 0 0,  #4a4f57 0 1.4px, #23262b 1.7px 2.6px, rgba(0,0,0,.65) 2.9px 3.3px, transparent 3.6px),
+    radial-gradient(circle at 100% 100%, #4a4f57 0 1.4px, #23262b 1.7px 2.6px, rgba(0,0,0,.65) 2.9px 3.3px, transparent 3.6px);
+  background-repeat:no-repeat;
+}
+.panel::after{
+  background:
+    radial-gradient(circle at 100% 0,  #4a4f57 0 1.4px, #23262b 1.7px 2.6px, rgba(0,0,0,.65) 2.9px 3.3px, transparent 3.6px),
+    radial-gradient(circle at 0 100%, #4a4f57 0 1.4px, #23262b 1.7px 2.6px, rgba(0,0,0,.65) 2.9px 3.3px, transparent 3.6px);
+  background-repeat:no-repeat;
+}
+/* 面板头：刻字式标题 + 旁通开关 */
+.phead{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin:-2px 0 8px;padding-bottom:6px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  box-shadow:0 1px 0 rgba(0,0,0,.5);
+}
+.ptitle{
+  font-family:"Share Tech Mono","Consolas",monospace;
+  font-size:11px;letter-spacing:.14em;color:#9aa0a8;
+  text-shadow:0 1px 0 rgba(0,0,0,.9);
+  display:flex;align-items:center;gap:7px;white-space:nowrap;
+}
+.pnum{color:var(--amber-dim);font-size:10px;letter-spacing:.05em}
+/* 旁通开关组 */
+.bp{display:flex;align-items:center;gap:5px;user-select:none}
+.bp label{font-family:"Share Tech Mono",monospace;font-size:9px;letter-spacing:.08em;color:var(--dim)}
+.rock{appearance:none;-webkit-appearance:none;width:38px;height:17px;border-radius:3px;cursor:pointer;position:relative;
+  background:linear-gradient(180deg,#2c2f34,#202227);border:1px solid #08090a;
+  box-shadow:inset 0 2px 3px rgba(0,0,0,.65), 0 1px 0 rgba(255,255,255,.07)}
+.rock::after{content:"";position:absolute;top:1px;left:1px;width:16px;height:13px;border-radius:2px;transition:left .12s;
+  background:linear-gradient(180deg,#4a4e55,#2a2d32);box-shadow:0 1px 1px rgba(0,0,0,.6)}
+.rock:checked{background:linear-gradient(180deg,#3a2f12,#2a210c);border-color:#0a0804}
+.rock:checked::after{left:19px;background:linear-gradient(180deg,var(--amber-hi),var(--amber));box-shadow:0 0 5px rgba(255,176,0,.45)}
+.rock:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+/* ---------- LED ---------- */
+.led{width:8px;height:8px;border-radius:50%;background:#201f1d;border:1px solid #000;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.8);flex:none}
+.led.on{background:radial-gradient(circle at 35% 30%, #ffe9a8, var(--amber) 45%, #8a5c00);
+  box-shadow:0 0 6px rgba(255,176,0,.85), 0 0 12px rgba(255,176,0,.3)}
+.led.green.on{background:radial-gradient(circle at 35% 30%, #eaffcf, var(--green) 45%, #3c6b1e);
+  box-shadow:0 0 6px rgba(168,255,96,.8)}
+.led.red.on{background:radial-gradient(circle at 35% 30%, #ffd9d4, var(--red) 50%, #7a1508);
+  box-shadow:0 0 7px rgba(255,77,61,.9)}
+.led.blink{animation:ledblink 1s steps(2) infinite}
+@keyframes ledblink{50%{opacity:.25}}
+
+/* ---------- LCD 显示屏 ---------- */
+.lcd{
+  font-family:"Share Tech Mono",Consolas,monospace;
+  background:var(--lcd-bg);border:1px solid #000;border-radius:3px;
+  color:var(--green);font-size:11px;letter-spacing:.06em;
+  padding:4px 7px;min-height:24px;
+  text-shadow:0 0 5px rgba(168,255,96,.45);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.85), inset 0 0 18px rgba(80,255,120,.05);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.lcd.amber{color:var(--amber);text-shadow:0 0 5px rgba(255,176,0,.45)}
+
+/* ---------- 头部主机板 ---------- */
+.header{
+  display:flex;flex-wrap:wrap;align-items:stretch;gap:12px;
+  background:linear-gradient(180deg,#202329 0%,#181a1e 55%,#14161a 100%);
+  border:1px solid #0a0b0d;border-radius:6px;
+  padding:12px 16px;margin-bottom:12px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.6), 0 3px 10px rgba(0,0,0,.5);
+}
+.brand{display:flex;flex-direction:column;justify-content:center;min-width:250px;flex:1}
+.brand .logo{
+  font-family:"Share Tech Mono",monospace;font-weight:700;font-size:26px;letter-spacing:.18em;
+  color:#e6e9ee;text-shadow:0 0 12px rgba(255,176,0,.25), 0 1px 0 #000;
+}
+.brand .logo b{color:var(--amber)}
+.brand .sub{font-family:"Share Tech Mono",monospace;font-size:10px;letter-spacing:.28em;color:var(--dim);margin-top:2px}
+.brand .sub i{color:#5d626a;font-style:normal}
+.head-right{display:flex;align-items:center;gap:10px}
+.head-lcd{display:flex;flex-direction:column;gap:5px;min-width:240px}
+.hrow{display:flex;gap:6px;align-items:center}
+.hrow .tag{font-family:"Share Tech Mono",monospace;font-size:9px;letter-spacing:.1em;color:var(--dim);width:56px;flex:none}
+.hrow .lcd{flex:1;font-size:11px;text-align:right}
+.power{display:flex;flex-direction:column;align-items:center;gap:5px;padding:0 6px}
+.power .led{width:11px;height:11px}
+.power span{font-family:"Share Tech Mono",monospace;font-size:8px;letter-spacing:.12em;color:var(--dim)}
+.vu{display:flex;align-items:flex-end;gap:2px;height:30px;padding:0 2px}
+.vu i{width:5px;border-radius:1px;background:linear-gradient(180deg,#202327,#14161a);border:1px solid #0a0b0d}
+.vu i.hot{background:linear-gradient(180deg,#5a4a10,#2c2108);border-color:#0a0804}
+.vu i.lit{background:linear-gradient(180deg,var(--green),#3c6b1e);border-color:#050a04;box-shadow:0 0 5px rgba(168,255,96,.5)}
+.vu i.over{background:linear-gradient(180deg,var(--red),#7a1508);border-color:#0a0302;box-shadow:0 0 5px rgba(255,77,61,.6)}
+
+/* ---------- 信号链图 ---------- */
+.chain{
+  display:flex;align-items:center;flex-wrap:wrap;gap:5px;
+  background:#121418;border:1px solid #0a0b0d;border-radius:5px;
+  padding:8px 10px;margin-bottom:12px;
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.7);
+}
+.chain .cname{font-family:"Share Tech Mono",monospace;font-size:9px;letter-spacing:.06em;color:var(--dim);margin-right:4px;white-space:nowrap}
+.chip{
+  display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;
+  font-family:"Share Tech Mono",monospace;font-size:10px;letter-spacing:.05em;
+  color:#9aa0a8;background:linear-gradient(180deg,#26292e,#1b1d21);
+  border:1px solid #0a0b0d;border-radius:3px;padding:4px 8px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 1px 2px rgba(0,0,0,.5);
+  transition:color .15s;
+}
+.chip:hover{color:#e6e9ee}
+.chip.off{color:#555a61;opacity:.72}
+.chip.on{color:var(--amber-hi)}
+.chip.on .led{background:radial-gradient(circle at 35% 30%, #ffe9a8, var(--amber) 45%, #8a5c00);box-shadow:0 0 5px rgba(255,176,0,.7)}
+.chip .led{width:6px;height:6px}
+.arrow{color:#3d424a;font-family:"Share Tech Mono",monospace;font-size:11px}
+
+/* ---------- 机架网格 ---------- */
+.rack{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;margin-bottom:12px}
+.p-in{grid-column:span 3}
+.p-eq{grid-column:span 6}
+.p-comp{grid-column:span 3}
+.p-bass{grid-column:span 4}
+.p-sur{grid-column:span 4}
+.p-hps{grid-column:span 4}
+.p-clar{grid-column:span 4}
+.p-ultra{grid-column:span 4}
+.p-tube{grid-column:span 4}
+.p-fdn{grid-column:span 8}
+.p-norm{grid-column:span 4}
+.p-wmk{grid-column:span 7}
+.p-info{grid-column:span 5}
+
+/* ---------- 控件 ---------- */
+.ctl{display:flex;align-items:center;gap:7px;margin:5px 0}
+.ctl .ctag{font-family:"Share Tech Mono",monospace;font-size:9px;letter-spacing:.08em;color:var(--dim);flex:none;white-space:nowrap}
+.ctl .lcd{flex:1;font-size:10px;min-height:20px;padding:2px 6px;text-align:right}
+select{
+  appearance:none;-webkit-appearance:none;flex:1;min-width:0;
+  font-family:"Share Tech Mono",monospace;font-size:11px;color:var(--green);
+  background:linear-gradient(180deg,#0d120d,#0a0e0a);border:1px solid #000;border-radius:3px;
+  padding:4px 6px;cursor:pointer;box-shadow:inset 0 1px 3px rgba(0,0,0,.8);
+}
+select:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
+select option{background:#16181b;color:#c8ccd2}
+input[type=text]{
+  flex:1;min-width:0;font-family:"Share Tech Mono",monospace;font-size:11px;color:var(--green);
+  background:linear-gradient(180deg,#0d120d,#0a0e0a);border:1px solid #000;border-radius:3px;
+  padding:4px 6px;box-shadow:inset 0 1px 3px rgba(0,0,0,.8);
+}
+input[type=text]:focus{outline:1px solid var(--amber)}
+
+/* 推子（水平） */
+.slider{appearance:none;-webkit-appearance:none;flex:1;height:18px;background:transparent;cursor:pointer}
+.slider::-webkit-slider-runnable-track{
+  height:4px;border-radius:2px;background:linear-gradient(180deg,#0a0b0d,#262a30);
+  border:1px solid #000;box-shadow:inset 0 1px 2px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.06)}
+.slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:12px;height:16px;margin-top:-7px;border-radius:2px;
+  background:linear-gradient(180deg,#5b6068,#2f3238 60%,#26292e);
+  border:1px solid #0a0b0d;box-shadow:0 1px 2px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.25)}
+.slider::-moz-range-track{height:4px;border-radius:2px;background:linear-gradient(180deg,#0a0b0d,#262a30);border:1px solid #000}
+.slider::-moz-range-thumb{width:12px;height:16px;border-radius:2px;background:linear-gradient(180deg,#5b6068,#2f3238 60%,#26292e);border:1px solid #0a0b0d}
+
+/* 垂直推子（EQ） */
+.fader-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0}
+.fader-v{
+  appearance:none;-webkit-appearance:none;position:relative;width:132px;height:132px;
+  background:transparent;cursor:pointer;transform:rotate(-90deg);
+}
+.fader-v::-webkit-slider-runnable-track{height:5px;border-radius:2px;
+  background:linear-gradient(180deg,#08090a,#2a2e34);border:1px solid #000;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,255,.05)}
+.fader-v::-webkit-slider-thumb{
+  -webkit-appearance:none;width:22px;height:13px;margin-top:-5px;border-radius:2px;
+  background:linear-gradient(180deg,#666c75,#3a3e45 55%,#2c2f34);
+  border:1px solid #0a0b0d;box-shadow:0 1px 3px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.3);
+  position:relative}
+.fader-v::-moz-range-track{height:5px;border-radius:2px;background:linear-gradient(180deg,#08090a,#2a2e34);border:1px solid #000}
+.fader-v::-moz-range-thumb{width:22px;height:13px;border-radius:2px;background:linear-gradient(180deg,#666c75,#3a3e45 55%,#2c2f34);border:1px solid #0a0b0d}
+.fv-label{font-family:"Share Tech Mono",monospace;font-size:8px;letter-spacing:.02em;color:var(--dim);text-align:center;line-height:1.1}
+.fv-val{font-family:"Share Tech Mono",monospace;font-size:10px;color:var(--green);text-shadow:0 0 4px rgba(168,255,96,.4);text-align:center}
+.eq-row{display:flex;gap:2px;margin-top:2px}
+
+/* ---------- 按钮 ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  font-family:"Share Tech Mono",monospace;font-size:12px;letter-spacing:.1em;
+  color:#d5d9de;background:linear-gradient(180deg,#3a3e45,#23262b 60%,#1d2024);
+  border:1px solid #0a0b0d;border-radius:4px;padding:9px 18px;cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 2px 4px rgba(0,0,0,.55);
+  transition:filter .12s, transform .05s;
+}
+.btn:hover{filter:brightness(1.14)}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.btn.primary{
+  background:linear-gradient(180deg,#b97d00,#8a5c00 55%,#6e4900);
+  color:#ffedc2;text-shadow:0 1px 1px rgba(0,0,0,.5);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22), 0 0 14px rgba(255,176,0,.25), 0 2px 4px rgba(0,0,0,.6);
+}
+.btn.primary:disabled{filter:grayscale(.7) brightness(.6);cursor:not-allowed}
+.btn.small{padding:5px 10px;font-size:10px}
+.btn .led{width:7px;height:7px}
+
+/* ---------- 渲染条 ---------- */
+.renderbar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:14px;
+  background:linear-gradient(180deg,#1f2227,#181a1e);border:1px solid #0a0b0d;border-radius:6px;
+  padding:12px 16px;margin-bottom:12px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 3px 10px rgba(0,0,0,.5);
+}
+.progress{flex:1;min-width:180px;display:flex;flex-direction:column;gap:5px}
+.pbar{height:12px;border-radius:3px;background:#0b0c0e;border:1px solid #000;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.85);overflow:hidden;position:relative}
+.pfill{height:100%;width:0%;background:repeating-linear-gradient(90deg,#2c8a1e 0 10px,#3fae2a 10px 20px);
+  box-shadow:0 0 8px rgba(120,255,90,.35);transition:width .12s}
+.pstatus{display:flex;justify-content:space-between;font-family:"Share Tech Mono",monospace;font-size:10px;color:var(--green);letter-spacing:.05em}
+.pstatus .pct{color:var(--amber)}
+.pstatus .err{color:var(--red)}
+
+/* ---------- 结果区 ---------- */
+.result{display:none;grid-template-columns:repeat(12,1fr);gap:12px;margin-bottom:12px}
+.result.show{display:grid}
+.r-stats{grid-column:span 3;display:flex;flex-direction:column;gap:5px}
+.r-stats .ctl .lcd{font-size:11px}
+.r-graphs{grid-column:span 9;display:flex;flex-direction:column;gap:10px}
+.graph{background:#0c0e10;border:1px solid #000;border-radius:4px;padding:6px;box-shadow:inset 0 2px 6px rgba(0,0,0,.8)}
+.graph .gt{font-family:"Share Tech Mono",monospace;font-size:9px;letter-spacing:.14em;color:var(--dim);display:flex;justify-content:space-between;margin-bottom:4px}
+canvas{width:100%;height:118px;display:block;background:#07090a;border-radius:3px}
+.r-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+
+/* ---------- 信息/路线图 ---------- */
+.road{display:flex;flex-direction:column;gap:4px;margin-top:2px}
+.road .ri{display:flex;gap:8px;align-items:baseline;font-size:10.5px;color:#9aa0a8}
+.road .ri .rnum{font-family:"Share Tech Mono",monospace;color:var(--amber-dim);flex:none;font-size:10px}
+.road .ri .rstat{font-family:"Share Tech Mono",monospace;font-size:9px;flex:none;letter-spacing:.06em}
+.road .ri.done .rstat{color:var(--green)}
+.road .ri.now .rstat{color:var(--amber)}
+.road .ri.wait .rstat{color:var(--dim)}
+.road .ri b{color:#c8ccd2;font-weight:600}
+.footer{margin-top:8px;font-family:"Share Tech Mono",monospace;font-size:9px;letter-spacing:.1em;color:#555a61;text-align:center;line-height:1.8}
+.footer a{color:#8a6d1c;text-decoration:none}
+
+/* ---------- 响应式 ---------- */
+@media (max-width:1080px){
+  .p-in,.p-eq,.p-comp,.p-bass,.p-sur,.p-hps,.p-clar,.p-ultra,.p-tube,.p-fdn,.p-norm,.p-wmk,.p-info{grid-column:span 6}
+}
+@media (max-width:760px){
+  body{padding:10px 8px 30px}
+  .p-in,.p-eq,.p-comp,.p-bass,.p-sur,.p-hps,.p-clar,.p-ultra,.p-tube,.p-fdn,.p-norm,.p-wmk,.p-info{grid-column:span 12}
+  .brand,.head-lcd{min-width:0;flex:1 1 auto}
+  .head-right{flex-wrap:wrap;gap:6px}
+  .brand .logo{font-size:20px}
+  .r-stats,.r-graphs{grid-column:span 12}
+  .eq-row{overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+  .fader-wrap{min-width:60px;flex:none}
+  .ctl{flex-wrap:wrap}
+  .ctl .ctag{min-width:64px}
+  .ctl .slider{min-width:120px}
+  .rock{width:44px;height:20px}
+  .rock::after{width:20px;height:15px}
+  .rock:checked::after{left:22px}
+  .chain{gap:4px}
+  .ptitle{flex:1;min-width:0;white-space:normal;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .phead .bp{flex:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="wrap">
+
+<!-- ================= 头部主机板 ================= -->
+<header class="header">
+  <div class="brand">
+    <div class="logo">RLON<b>MUSIC</b> DSP-IR</div>
+    <div class="sub">IMPULSE&nbsp;RESPONSE&nbsp;PROCESSOR&nbsp;&nbsp;<i>·&nbsp;MODEL&nbsp;1200</i></div>
+  </div>
+  <div class="head-right">
+    <div class="head-lcd">
+      <div class="hrow"><span class="tag">PROJ&nbsp;RATE</span><div class="lcd amber" id="lcd-rate">48000 Hz</div></div>
+      <div class="hrow"><span class="tag">LENGTH</span><div class="lcd" id="lcd-len">2.00 s / 24 bit</div></div>
+      <div class="hrow"><span class="tag">CHAIN</span><div class="lcd" id="lcd-chain">13 STAGES READY</div></div>
+    </div>
+    <div class="vu" id="vu" aria-hidden="true"></div>
+    <div class="power">
+      <div class="led red on" id="pwr"></div>
+      <span id="pwr-txt">READY</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= 信号链图 ================= -->
+<nav class="chain" id="chain" aria-label="信号处理链">
+  <span class="cname">SIGNAL&nbsp;CHAIN</span>
+  <span class="chip on" data-mod="imp"><span class="led"></span>IMPULSE</span><span class="arrow">→</span>
+  <span class="chip on" data-mod="eq"><span class="led"></span>EQ-9</span><span class="arrow">→</span>
+  <span class="chip on" data-mod="comp"><span class="led"></span>COMP</span><span class="arrow">→</span>
+  <span class="chip on" data-mod="bass"><span class="led"></span>BASS</span><span class="arrow">→</span>
+  <span class="chip on" data-mod="sur"><span class="led"></span>SUR3D</span><span class="arrow">→</span>
+  <span class="chip on" data-mod="hps"><span class="led"></span>HP-SUR</span><span class="arrow">→</span>
+  <span class="chip on" data-mod="clar"><span class="led"></span>CLAR</span><span class="arrow">→</span>
+  <span class="chip on" data-mod="ultra"><span class="led"></span>ULTRA</span><span class="arrow">→</span>
+  <span class="chip on" data-mod="tube"><span class="led"></span>TUBE</span><span class="arrow">→</span>
+  <span class="chip on" data-mod="fdn"><span class="led"></span>FDN</span><span class="arrow">→</span>
+  <span class="chip on" data-mod="norm"><span class="led"></span>NORM</span><span class="arrow">→</span>
+  <span class="chip on" data-mod="wmk"><span class="led"></span>WMK</span><span class="arrow">→</span>
+  <span class="chip on" data-mod="wav"><span class="led"></span>WAV</span>
+</nav>
+
+<!-- ================= 机架 ================= -->
+<main class="rack" id="rack">
+
+  <!-- ─── 模块 1 · 冲激输入 ─── -->
+  <section class="panel p-in" id="mod-imp">
+    <div class="phead">
+      <div class="ptitle"><span class="pnum">01</span>IMPULSE&nbsp;INPUT</div>
+      <span class="led green on" id="led-imp"></span>
+    </div>
+    <div class="ctl"><span class="ctag">SAMPLE&nbsp;RATE</span>
+      <select id="in-rate">
+        <option value="44100">44100 Hz</option>
+        <option value="48000" selected>48000 Hz</option>
+        <option value="88200">88200 Hz</option>
+        <option value="96000">96000 Hz</option>
+      </select>
+    </div>
+    <div class="ctl"><span class="ctag">BIT&nbsp;DEPTH</span>
+      <select id="in-bits">
+        <option value="16">16-bit PCM</option>
+        <option value="24" selected>24-bit PCM</option>
+        <option value="32">32-bit Float</option>
+      </select>
+    </div>
+    <div class="ctl"><span class="ctag">IR&nbsp;LENGTH</span>
+      <select id="in-len">
+        <option value="0.25">0.25 s</option>
+        <option value="0.5">0.50 s</option>
+        <option value="1">1.00 s</option>
+        <option value="2" selected>2.00 s</option>
+        <option value="4">4.00 s</option>
+        <option value="8">8.00 s</option>
+      </select>
+    </div>
+    <div class="ctl"><span class="ctag">AMP&nbsp;&nbsp;dBFS</span>
+      <input type="range" class="slider" id="in-amp" min="-24" max="0" step="0.5" value="-6">
+      <div class="lcd" id="lcd-amp">-6.0 dB</div>
+    </div>
+    <div class="ctl"><span class="ctag">INPUT</span><div class="lcd" id="lcd-imp">UNIT IMPULSE</div></div>
+  </section>
+
+  <!-- ─── 模块 2 · 9 段图形均衡器 ─── -->
+  <section class="panel p-eq" id="mod-eq">
+    <div class="phead">
+      <div class="ptitle"><span class="pnum">02</span>GRAPHIC&nbsp;EQ&nbsp;·&nbsp;9-BAND&nbsp;RBJ&nbsp;PEAKING&nbsp;±12dB</div>
+      <div class="bp"><label>BYPASS</label><input type="checkbox" class="rock" id="eq-en" checked></div>
+    </div>
+    <div class="eq-row" id="eq-bands">
+      <div class="fader-wrap"><input type="range" class="fader-v" data-band="0" min="-12" max="12" step="0.5" value="0"><div class="fv-val" id="eqv-0">0.0</div><div class="fv-label">65</div></div>
+      <div class="fader-wrap"><input type="range" class="fader-v" data-band="1" min="-12" max="12" step="0.5" value="0"><div class="fv-val" id="eqv-1">0.0</div><div class="fv-label">125</div></div>
+      <div class="fader-wrap"><input type="range" class="fader-v" data-band="2" min="-12" max="12" step="0.5" value="0"><div class="fv-val" id="eqv-2">0.0</div><div class="fv-label">250</div></div>
+      <div class="fader-wrap"><input type="range" class="fader-v" data-band="3" min="-12" max="12" step="0.5" value="0"><div class="fv-val" id="eqv-3">0.0</div><div class="fv-label">500</div></div>
+      <div class="fader-wrap"><input type="range" class="fader-v" data-band="4" min="-12" max="12" step="0.5" value="0"><div class="fv-val" id="eqv-4">0.0</div><div class="fv-label">1K</div></div>
+      <div class="fader-wrap"><input type="range" class="fader-v" data-band="5" min="-12" max="12" step="0.5" value="0"><div class="fv-val" id="eqv-5">0.0</div><div class="fv-label">2K</div></div>
+      <div class="fader-wrap"><input type="range" class="fader-v" data-band="6" min="-12" max="12" step="0.5" value="0"><div class="fv-val" id="eqv-6">0.0</div><div class="fv-label">4K</div></div>
+      <div class="fader-wrap"><input type="range" class="fader-v" data-band="7" min="-12" max="12" step="0.5" value="0"><div class="fv-val" id="eqv-7">0.0</div><div class="fv-label">8K</div></div>
+      <div class="fader-wrap"><input type="range" class="fader-v" data-band="8" min="-12" max="12" step="0.5" value="0"><div class="fv-val" id="eqv-8">0.0</div><div class="fv-label">16.7K</div></div>
+    </div>
+    <div class="ctl" style="margin-top:7px"><span class="ctag">AUTO&nbsp;TRIM</span>
+      <input type="checkbox" class="rock" id="eq-trim" checked style="margin:0 8px 0 0">
+      <span class="ctag" style="margin-left:auto">Q=1.10&nbsp;·&nbsp;SERIES</span>
+    </div>
+  </section>
+
+  <!-- ─── 模块 3 · 动态压缩器 ─── -->
+  <section class="panel p-comp" id="mod-comp">
+    <div class="phead">
+      <div class="ptitle"><span class="pnum">03</span>COMPRESSOR</div>
+      <div class="bp"><label>BYPASS</label><input type="checkbox" class="rock" id="comp-en" checked></div>
+    </div>
+    <div class="ctl"><span class="ctag">THRESH</span>
+      <input type="range" class="slider" id="comp-thr" min="-60" max="0" step="1" value="-24">
+      <div class="lcd" id="lcd-comp-thr">-24 dB</div>
+    </div>
+    <div class="ctl"><span class="ctag">RATIO</span>
+      <input type="range" class="slider" id="comp-ratio" min="1" max="20" step="0.5" value="4">
+      <div class="lcd" id="lcd-comp-ratio">4.0 :1</div>
+    </div>
+    <div class="ctl"><span class="ctag">ATTACK</span>
+      <input type="range" class="slider" id="comp-att" min="0.1" max="100" step="0.1" value="15">
+      <div class="lcd" id="lcd-comp-att">15.0 ms</div>
+    </div>
+    <div class="ctl"><span class="ctag">RELEASE</span>
+      <input type="range" class="slider" id="comp-rel" min="10" max="1000" step="10" value="150">
+      <div class="lcd" id="lcd-comp-rel">150 ms</div>
+    </div>
+    <div class="ctl"><span class="ctag">KNEE</span>
+      <input type="range" class="slider" id="comp-knee" min="0" max="24" step="1" value="6">
+      <div class="lcd" id="lcd-comp-knee">6 dB</div>
+    </div>
+    <div class="ctl"><span class="ctag">MAKEUP</span>
+      <input type="range" class="slider" id="comp-mu" min="-6" max="18" step="0.5" value="0">
+      <div class="lcd" id="lcd-comp-mu">AUTO+0.0</div>
+    </div>
+    <div class="ctl"><span class="ctag">SOFT&nbsp;CLIP</span>
+      <input type="checkbox" class="rock" id="comp-sc" checked style="margin:0 6px 0 0">
+      <span class="ctag" style="margin-left:auto">TANH LIMIT</span>
+    </div>
+  </section>
+
+  <!-- ─── 模块 4 · 低频增强 ─── -->
+  <section class="panel p-bass" id="mod-bass">
+    <div class="phead">
+      <div class="ptitle"><span class="pnum">04</span>SUPER&nbsp;BASS</div>
+      <div class="bp"><label>BYPASS</label><input type="checkbox" class="rock" id="bass-en" checked></div>
+    </div>
+    <div class="ctl"><span class="ctag">X-OVER</span>
+      <input type="range" class="slider" id="bass-xo" min="40" max="300" step="5" value="120">
+      <div class="lcd" id="lcd-bass-xo">120 Hz</div>
+    </div>
+    <div class="ctl"><span class="ctag">DRIVE</span>
+      <input type="range" class="slider" id="bass-dr" min="1" max="8" step="0.1" value="2.5">
+      <div class="lcd" id="lcd-bass-dr">2.5</div>
+    </div>
+    <div class="ctl"><span class="ctag">MODE</span>
+      <select id="bass-mode">
+        <option value="natural" selected>NATURAL · 奇次谐波</option>
+        <option value="rich">RICH · 偶+奇谐波</option>
+      </select>
+    </div>
+    <div class="ctl"><span class="ctag">MIX</span>
+      <input type="range" class="slider" id="bass-mix" min="0" max="100" step="1" value="60">
+      <div class="lcd" id="lcd-bass-mix">60 %</div>
+    </div>
+    <div class="ctl"><span class="ctag">ENV&nbsp;TRK</span>
+      <input type="checkbox" class="rock" id="bass-env" checked style="margin:0 6px 0 0">
+      <span class="ctag" style="margin-left:auto">2ND-ORDER X-OVER</span>
+    </div>
+  </section>
+
+  <!-- ─── 模块 5 · 3D 宽幅声场 ─── -->
+  <section class="panel p-sur" id="mod-sur">
+    <div class="phead">
+      <div class="ptitle"><span class="pnum">05</span>SURROUND&nbsp;3D</div>
+      <div class="bp"><label>BYPASS</label><input type="checkbox" class="rock" id="sur-en" checked></div>
+    </div>
+    <div class="ctl"><span class="ctag">WIDTH</span>
+      <input type="range" class="slider" id="sur-w" min="0" max="100" step="1" value="65">
+      <div class="lcd" id="lcd-sur-w">65 %</div>
+    </div>
+    <div class="ctl"><span class="ctag">DECORR</span>
+      <input type="range" class="slider" id="sur-del" min="1" max="25" step="0.5" value="9">
+      <div class="lcd" id="lcd-sur-del">9.0 ms</div>
+    </div>
+    <div class="ctl"><span class="ctag">ALLPASS</span>
+      <input type="range" class="slider" id="sur-ap" min="0" max="100" step="1" value="40">
+      <div class="lcd" id="lcd-sur-ap">40 %</div>
+    </div>
+    <div class="ctl"><span class="ctag">MIX</span>
+      <input type="range" class="slider" id="sur-mix" min="0" max="100" step="1" value="100">
+      <div class="lcd" id="lcd-sur-mix">100 %</div>
+    </div>
+    <div class="ctl"><span class="ctag">OUTPUT</span><div class="lcd">MONO → L/R</div></div>
+  </section>
+
+  <!-- ─── 模块 6 · 耳机环绕 ─── -->
+  <section class="panel p-hps" id="mod-hps">
+    <div class="phead">
+      <div class="ptitle"><span class="pnum">06</span>HP&nbsp;SURROUND</div>
+      <div class="bp"><label>BYPASS</label><input type="checkbox" class="rock" id="hps-en" checked></div>
+    </div>
+    <div class="ctl"><span class="ctag">MODE</span>
+      <select id="hps-mode">
+        <option value="crossfeed" selected>CROSSFEED 网络</option>
+        <option value="ir">IR 卷积</option>
+      </select>
+    </div>
+    <div class="ctl"><span class="ctag">AMOUNT</span>
+      <input type="range" class="slider" id="hps-amt" min="0" max="100" step="1" value="50">
+      <div class="lcd" id="lcd-hps-amt">50 %</div>
+    </div>
+    <div class="ctl"><span class="ctag">FREQ</span>
+      <input type="range" class="slider" id="hps-fr" min="400" max="4000" step="50" value="1600">
+      <div class="lcd" id="lcd-hps-fr">1600 Hz</div>
+    </div>
+    <div class="ctl"><span class="ctag">DELAY</span>
+      <input type="range" class="slider" id="hps-del" min="0.05" max="2" step="0.05" value="0.4">
+      <div class="lcd" id="lcd-hps-del">0.40 ms</div>
+    </div>
+    <div class="ctl"><span class="ctag">ENGINE</span><div class="lcd">X-FEED + LP + DELAY</div></div>
+  </section>
+
+  <!-- ─── 模块 7 · 清晰度 ─── -->
+  <section class="panel p-clar" id="mod-clar">
+    <div class="phead">
+      <div class="ptitle"><span class="pnum">07</span>CLARITY</div>
+      <div class="bp"><label>BYPASS</label><input type="checkbox" class="rock" id="clar-en" checked></div>
+    </div>
+    <div class="ctl"><span class="ctag">AMOUNT</span>
+      <input type="range" class="slider" id="clar-amt" min="0" max="12" step="0.5" value="4">
+      <div class="lcd" id="lcd-clar-amt">4.0 dB</div>
+    </div>
+    <div class="ctl"><span class="ctag">THRESH</span>
+      <input type="range" class="slider" id="clar-thr" min="-60" max="0" step="1" value="-35">
+      <div class="lcd" id="lcd-clar-thr">-35 dB</div>
+    </div>
+    <div class="ctl"><span class="ctag">FREQ</span>
+      <input type="range" class="slider" id="clar-fr" min="3000" max="12000" step="100" value="6000">
+      <div class="lcd" id="lcd-clar-fr">6000 Hz</div>
+    </div>
+    <div class="ctl"><span class="ctag">ENGINE</span><div class="lcd">动态高频补偿</div></div>
+  </section>
+
+  <!-- ─── 模块 8 · 超声滤波器 ─── -->
+  <section class="panel p-ultra" id="mod-ultra">
+    <div class="phead">
+      <div class="ptitle"><span class="pnum">08</span>ULTRA&nbsp;FILTER</div>
+      <div class="bp"><label>BYPASS</label><input type="checkbox" class="rock" id="ultra-en" checked></div>
+    </div>
+    <div class="ctl"><span class="ctag">CUTOFF</span>
+      <input type="range" class="slider" id="ultra-fr" min="15000" max="24000" step="100" value="20000">
+      <div class="lcd" id="lcd-ultra-fr">20000 Hz</div>
+    </div>
+    <div class="ctl"><span class="ctag">ORDER</span><div class="lcd">4TH BUTTERWORTH</div></div>
+    <div class="ctl"><span class="ctag">PURPOSE</span><div class="lcd">ANTI-ALIAS / 20K</div></div>
+  </section>
+
+  <!-- ─── 模块 9 · 胆机模拟 ─── -->
+  <section class="panel p-tube" id="mod-tube">
+    <div class="phead">
+      <div class="ptitle"><span class="pnum">09</span>TUBE&nbsp;SIM</div>
+      <div class="bp"><label>BYPASS</label><input type="checkbox" class="rock" id="tube-en" checked></div>
+    </div>
+    <div class="ctl"><span class="ctag">DRIVE</span>
+      <input type="range" class="slider" id="tube-dr" min="0.5" max="20" step="0.1" value="6">
+      <div class="lcd" id="lcd-tube-dr">6.0</div>
+    </div>
+    <div class="ctl"><span class="ctag">BIAS</span>
+      <input type="range" class="slider" id="tube-bias" min="-0.5" max="0.5" step="0.05" value="0">
+      <div class="lcd" id="lcd-tube-bias">0.00</div>
+    </div>
+    <div class="ctl"><span class="ctag">MIX</span>
+      <input type="range" class="slider" id="tube-mix" min="0" max="100" step="1" value="55">
+      <div class="lcd" id="lcd-tube-mix">55 %</div>
+    </div>
+    <div class="ctl"><span class="ctag">ENGINE</span><div class="lcd">TANH 2-STAGE</div></div>
+  </section>
+
+  <!-- ─── 模块 10 · FDN 混响 ─── -->
+  <section class="panel p-fdn" id="mod-fdn">
+    <div class="phead">
+      <div class="ptitle"><span class="pnum">10</span>FDN&nbsp;REVERB&nbsp;·&nbsp;8-CH&nbsp;HOUSEHOLDER</div>
+      <div class="bp"><label>BYPASS</label><input type="checkbox" class="rock" id="fdn-en" checked></div>
+    </div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap">
+      <div style="flex:1;min-width:150px">
+        <div class="ctl"><span class="ctag">PREDELAY</span>
+          <input type="range" class="slider" id="fdn-pre" min="0" max="250" step="1" value="35">
+          <div class="lcd" id="lcd-fdn-pre">35 ms</div>
+        </div>
+        <div class="ctl"><span class="ctag">SIZE</span>
+          <input type="range" class="slider" id="fdn-size" min="0.25" max="2" step="0.05" value="1">
+          <div class="lcd" id="lcd-fdn-size">1.00</div>
+        </div>
+        <div class="ctl"><span class="ctag">T60</span>
+          <input type="range" class="slider" id="fdn-t60" min="0.1" max="6" step="0.1" value="1.6">
+          <div class="lcd" id="lcd-fdn-t60">1.6 s</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:150px">
+        <div class="ctl"><span class="ctag">DAMPING</span>
+          <input type="range" class="slider" id="fdn-damp" min="400" max="12000" step="50" value="4200">
+          <div class="lcd" id="lcd-fdn-damp">4200 Hz</div>
+        </div>
+        <div class="ctl"><span class="ctag">WET</span>
+          <input type="range" class="slider" id="fdn-wet" min="0" max="100" step="1" value="40">
+          <div class="lcd" id="lcd-fdn-wet">40 %</div>
+        </div>
+        <div class="ctl"><span class="ctag">LINES</span><div class="lcd">8 × PRIME DELAYS</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── 模块 11 · 峰值归一化 ─── -->
+  <section class="panel p-norm" id="mod-norm">
+    <div class="phead">
+      <div class="ptitle"><span class="pnum">11</span>NORMALIZE</div>
+      <div class="bp"><label>BYPASS</label><input type="checkbox" class="rock" id="norm-en" checked></div>
+    </div>
+    <div class="ctl"><span class="ctag">TARGET</span><div class="lcd amber">-0.01 dBFS</div></div>
+    <div class="ctl"><span class="ctag">MODE</span><div class="lcd">JOINT PEAK</div></div>
+    <div class="ctl"><span class="ctag">STATE</span><div class="lcd" id="lcd-norm">ARMED</div></div>
+  </section>
+
+  <!-- ─── 模块 12 · 水印 ─── -->
+  <section class="panel p-wmk" id="mod-wmk">
+    <div class="phead">
+      <div class="ptitle"><span class="pnum">12</span>WATERMARK&nbsp;·&nbsp;SS&nbsp;LSB</div>
+      <div class="bp"><label>BYPASS</label><input type="checkbox" class="rock" id="wmk-en" checked></div>
+    </div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap">
+      <div style="flex:1;min-width:180px">
+        <div class="ctl"><span class="ctag">MESSAGE</span>
+          <input type="text" id="wmk-msg" value="RLONMUSIC DSP-IR" maxlength="24" spellcheck="false">
+        </div>
+        <div class="ctl"><span class="ctag">CHIP&nbsp;RATE</span><div class="lcd">×64 PN / BIT</div></div>
+      </div>
+      <div style="flex:1;min-width:150px">
+        <div class="ctl"><span class="ctag">DEPTH</span>
+          <input type="range" class="slider" id="wmk-depth" min="1" max="3" step="1" value="1">
+          <div class="lcd" id="lcd-wmk-depth">1 LSB</div>
+        </div>
+        <div class="ctl"><span class="ctag">CODE</span><div class="lcd" id="lcd-wmk-code">LFSR-32 + BPSK</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── 系统信息 / 路线图 ─── -->
+  <section class="panel p-info">
+    <div class="phead">
+      <div class="ptitle"><span class="pnum">SYS</span>BUILD&nbsp;STATUS</div>
+      <span class="led green on"></span>
+    </div>
+    <div class="road">
+      <div class="ri done"><span class="rnum">P1</span><span><b>模块化重构 + Worker 渲染</b> —— 已完成：DSP 链解耦为 ES6 Class，分块异步计算</span><span class="rstat">DONE</span></div>
+      <div class="ri wait"><span class="rnum">P2</span><span><b>实时试听预览</b> —— Web Audio 节点网络，上传音频监听音效叠加</span><span class="rstat">PLAN</span></div>
+      <div class="ri wait"><span class="rnum">P3</span><span><b>算法精度</b> —— Householder 阻尼优化 / 2x·4x 过采样抗混叠</span><span class="rstat">PLAN</span></div>
+      <div class="ri wait"><span class="rnum">P4</span><span><b>UI 复刻与预设</b> —— 频响/T60 曲线、JSON 预设导入导出</span><span class="rstat">PLAN</span></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ================= 渲染条 ================= -->
+<div class="renderbar">
+  <button class="btn primary" id="btn-render"><span class="led red" id="led-render"></span>RENDER&nbsp;IR</button>
+  <div class="progress">
+    <div class="pbar"><div class="pfill" id="pfill"></div></div>
+    <div class="pstatus">
+      <span id="pmsg">STANDBY — 配置 DSP 链后渲染</span>
+      <span class="pct" id="ppct">00 %</span>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 结果区 ================= -->
+<section class="result" id="result">
+  <div class="panel r-stats">
+    <div class="phead"><div class="ptitle">OUTPUT&nbsp;FILE</div><span class="led green on" id="led-ok"></span></div>
+    <div class="ctl"><span class="ctag">FILE</span><div class="lcd amber" id="st-file">-</div></div>
+    <div class="ctl"><span class="ctag">FORMAT</span><div class="lcd" id="st-fmt">-</div></div>
+    <div class="ctl"><span class="ctag">PEAK</span><div class="lcd" id="st-peak">-</div></div>
+    <div class="ctl"><span class="ctag">RMS</span><div class="lcd" id="st-rms">-</div></div>
+    <div class="ctl"><span class="ctag">DUR</span><div class="lcd" id="st-dur">-</div></div>
+    <div class="r-actions">
+      <button class="btn small" id="btn-dl">⬇ DOWNLOAD .WAV</button>
+      <button class="btn small" id="btn-play">▶ PLAY</button>
+    </div>
+  </div>
+  <div class="r-graphs">
+    <div class="graph"><div class="gt"><span>IR&nbsp;WAVEFORM&nbsp;·&nbsp;L/R</span><span class="mono" id="g1-info"></span></div><canvas id="cv-wave" height="118"></canvas></div>
+    <div class="graph"><div class="gt"><span>MAGNITUDE&nbsp;SPECTRUM&nbsp;·&nbsp;dB</span><span class="mono" id="g2-info"></span></div><canvas id="cv-spec" height="118"></canvas></div>
+  </div>
+</section>
+
+<div class="footer">
+  RLONMUSIC DSP-IR 1200 · DSP CHAIN: IMPULSE→EQ9→COMP→BASS→SUR3D→HP-SUR→CLARITY→ULTRA→TUBE→FDN→NORM→WMK→WAV<br>
+  纯 Web 前端 · Web Worker 分块渲染 · 参考开源项目 <a href="https://github.com/hoowhoami/EchoMusic" target="_blank" rel="noopener">EchoMusic</a> · 灵感: GPL-3.0
+</div>
+
+</div>
+
+<script type="text/plain" id="dsp-core">
+'use strict';
+/* =====================================================================
+   RLONMUSIC DSP-IR 1200 · DSP CORE ENGINE (无 DOM 依赖，Worker/主线程共用)
+   链序: IMPULSE → EQ9 → COMP → BASS → SUR3D → HP-SUR → CLARITY
+         → ULTRA → TUBE → FDN → NORM → WMK → WAV
+   ===================================================================== */
+
+/* ---------------- Biquad ---------------- */
+function Biquad(){
+  this.b0=1;this.b1=0;this.b2=0;this.a0=1;this.a1=0;this.a2=0;
+  this.x1=0;this.x2=0;this.y1=0;this.y2=0;
+}
+Biquad.prototype.reset=function(){ this.x1=this.x2=this.y1=this.y2=0; };
+Biquad.prototype.norm=function(){ var a=this.a0; this.b0/=a;this.b1/=a;this.b2/=a;this.a1/=a;this.a2/=a; };
+Biquad.prototype.peaking=function(f,q,g,fs){
+  var A=Math.pow(10,g/40), w=2*Math.PI*f/fs, cw=Math.cos(w), sw=Math.sin(w), al=sw/(2*q);
+  this.b0=1+al*A; this.b1=-2*cw; this.b2=1-al*A;
+  this.a0=1+al/A; this.a1=-2*cw; this.a2=1-al/A; this.norm();
+};
+Biquad.prototype.lp2=function(f,fs){ /* Butterworth 2nd order */
+  var w=2*Math.PI*f/fs, cw=Math.cos(w), sw=Math.sin(w), al=sw/Math.SQRT2;
+  this.b0=(1-cw)/2; this.b1=1-cw; this.b2=(1-cw)/2;
+  this.a0=1+al; this.a1=-2*cw; this.a2=1-al; this.norm();
+};
+Biquad.prototype.hp2=function(f,fs){
+  var w=2*Math.PI*f/fs, cw=Math.cos(w), sw=Math.sin(w), al=sw/Math.SQRT2;
+  this.b0=(1+cw)/2; this.b1=-(1+cw); this.b2=(1+cw)/2;
+  this.a0=1+al; this.a1=-2*cw; this.a2=1-al; this.norm();
+};
+Biquad.prototype.onepole=function(f,fs){
+  var g=1-Math.exp(-2*Math.PI*f/fs);
+  this.b0=g; this.b1=0; this.b2=0; this.a0=1; this.a1=-(1-g); this.a2=0;
+};
+Biquad.prototype.process=function(x){
+  var y=this.b0*x+this.b1*this.x1+this.b2*this.x2-this.a1*this.y1-this.a2*this.y2;
+  this.x2=this.x1; this.x1=x; this.y2=this.y1; this.y1=y; return y;
+};
+
+/* ---------------- 9-Band Graphic EQ (RBJ peaking 串联) ---------------- */
+var EQ_BANDS=[65,125,250,500,1000,2000,4000,8000,16700];
+function GraphicEQ(fs){
+  this.fs=fs; this.q=1.1; this.filts=[]; this.trim=1;
+  for(var i=0;i<9;i++){ this.filts.push(new Biquad()); }
+}
+GraphicEQ.prototype.setGains=function(g,autoTrim){
+  var i, mean=0;
+  for(i=0;i<9;i++){ mean+=Math.abs(g[i]); }
+  mean/=9;
+  var trim=0;
+  if(autoTrim){ trim=Math.max(-6,Math.min(6,-mean*0.6)); }
+  this.trim=Math.pow(10,trim/20);
+  for(i=0;i<9;i++){ this.filts[i].peaking(EQ_BANDS[i],this.q,g[i],this.fs); }
+};
+GraphicEQ.prototype.process=function(x){
+  var i,v=x;
+  for(i=0;i<9;i++){ v=this.filts[i].process(v); }
+  return v*this.trim;
+};
+
+/* ---------------- Compressor (软拐点 + 自动补偿 + 软限幅) ---------------- */
+function Compressor(){ this.env=0; }
+Compressor.prototype.configure=function(p,fs){
+  this.thr=p.thr; this.ratio=p.ratio; this.knee=p.knee;
+  this.att=Math.exp(-1/(fs*(p.att/1000)));
+  this.rel=Math.exp(-1/(fs*(p.rel/1000)));
+  var makeupDb;
+  if(p.autoMu){
+    var gr0=(0-p.thr)*(1/p.ratio-1);
+    makeupDb=Math.max(0,-gr0)+p.mu;
+  } else { makeupDb=p.mu; }
+  this.makeup=Math.pow(10,makeupDb/20);
+  this.sc=p.sc;
+};
+Compressor.prototype.processBlock=function(src,dst,n){
+  var i, env=this.env, thr=this.thr, ratio=this.ratio, knee=this.knee;
+  var att=this.att, rel=this.rel, mu=this.makeup, sc=this.sc;
+  var k2=knee/2;
+  for(i=0;i<n;i++){
+    var xi=src[i], lv=Math.abs(xi);
+    var coef=lv>env?att:rel;
+    env=coef*env+(1-coef)*lv;
+    var ed=20*Math.log10(env+1e-12), gr=0;
+    if(ed>thr-k2){
+      if(knee>0 && ed<thr+k2){
+        var t=ed-thr+k2;
+        gr=(t*t)/(2*knee)*(1/ratio-1);
+      } else { gr=(ed-thr)*(1/ratio-1); }
+    }
+    var y=xi*Math.pow(10,gr/20)*mu;
+    if(sc){ y=Math.tanh(y); }
+    dst[i]=y;
+  }
+  this.env=env;
+};
+
+/* ---------------- SuperBass (分频 + 谐波 + 包络跟踪) ---------------- */
+function SuperBass(){ this.env=0; }
+SuperBass.prototype.configure=function(p,fs){
+  this.lp=new Biquad(); this.lp.lp2(p.xo,fs);
+  this.hp=new Biquad(); this.hp.hp2(p.xo,fs);
+  this.drive=p.drive; this.mode=p.mode; this.mix=p.mix; this.envTrk=p.env;
+  this.att=Math.exp(-1/(fs*0.005)); this.rel=Math.exp(-1/(fs*0.12));
+  this.tmpLp=new Float32Array(8192); this.tmpHp=new Float32Array(8192);
+};
+SuperBass.prototype.processBlock=function(src,dst,n){
+  var i, env=this.env, att=this.att, rel=this.rel, drive=this.drive;
+  var lp=this.lp, hp=this.hp, tmpLp=this.tmpLp, tmpHp=this.tmpHp, mix=this.mix, envTrk=this.envTrk;
+  for(i=0;i<n;i++){
+    var x=src[i];
+    tmpLp[i]=lp.process(x); tmpHp[i]=hp.process(x);
+  }
+  var normL=0;
+  for(i=0;i<n;i++){ var a=Math.abs(tmpLp[i]); if(a>normL){normL=a;} }
+  for(i=0;i<n;i++){
+    var a2=Math.abs(tmpLp[i]);
+    var coef=a2>env?att:rel;
+    env=coef*env+(1-coef)*a2;
+    var dr=drive;
+    if(envTrk){ dr=drive*(0.35+0.65*Math.min(1,env*4)); }
+    var d=tmpLp[i]*dr, sh;
+    if(this.mode==='natural'){ sh=Math.tanh(d); }
+    else { sh=0.7*Math.tanh(d)+0.3*(d*d*(d>=0?1:-1)); }
+    dst[i]=tmpHp[i]*(1-mix)+sh*mix;
+  }
+  if(normL>1e-6){
+    var g=Math.min(1.2,0.5/normL); /* 保守电平保护 */
+    for(i=0;i<n;i++){ dst[i]*=g; }
+  }
+  this.env=env;
+};
+
+/* ---------------- Allpass ---------------- */
+function Allpass(g,d){ this.g=g; this.buf=new Float32Array(Math.max(1,d)); this.pos=0; }
+Allpass.prototype.process=function(x){
+  var p=this.pos, out=this.buf[p];
+  var y=-x+out;
+  this.buf[p]=x+out*this.g;
+  this.pos=(p+1)%this.buf.length;
+  return y;
+};
+
+/* ---------------- Surround3D (单声道→立体声 3D 宽幅) ---------------- */
+function Surround3D(){}
+Surround3D.prototype.configure=function(p,fs){
+  this.delayS=Math.max(1,Math.round(p.delay/1000*fs));
+  this.buf=new Float32Array(this.delayS+4); this.pos=0;
+  this.ap0=new Allpass(0.31,187); this.ap1=new Allpass(0.27,311);
+  this.width=p.width; this.mix=p.mix; this.apDepth=p.ap;
+};
+Surround3D.prototype.process=function(src,n,L,R){
+  var i, dec, buf=this.buf, pos=this.pos, ds=this.delayS, w=this.width*0.007, mix=this.mix/100;
+  var ap0=this.ap0, ap1=this.ap1, apDepth=this.apDepth/100;
+  for(i=0;i<n;i++){
+    var x=src[i];
+    dec=x*(1-apDepth)+apDepth*ap1.process(ap0.process(x));
+    buf[pos]=dec;
+    var idx=(pos+ds)%buf.length;
+    dec=buf[idx];
+    pos++; if(pos>=buf.length){ pos=0; }
+    var side=dec*w;
+    L[i]=x*(1-mix)+(x+side)*mix;
+    R[i]=x*(1-mix)+(x-side)*mix;
+  }
+  this.pos=pos;
+};
+
+/* ---------------- HeadphoneSurround (crossfeed / IR 卷积) ---------------- */
+function HeadphoneSurround(){}
+HeadphoneSurround.prototype.configure=function(p,fs){
+  this.mode=p.mode; this.amt=p.amt/100; this.fs=fs;
+  this.delayS=Math.max(1,Math.round(p.delay/1000*fs));
+  this.bufL=new Float32Array(this.delayS+4); this.bufR=new Float32Array(this.delayS+4);
+  this.posL=0; this.posR=0;
+  this.lpL=new Biquad(); this.lpL.onepole(p.freq,fs);
+  this.lpR=new Biquad(); this.lpR.onepole(p.freq,fs);
+  /* IR 卷积核: 指数衰减扩散场 (确定性伪随机) */
+  var K=128, h=new Float32Array(K), s=0x9E3779B9>>>0, i;
+  for(i=1;i<K;i++){ s^=s<<13;s>>>=0;s^=s>>17;s^=s<<5;s>>>=0; h[i]=(s/4294967296*2-1)*Math.exp(-i/34); }
+  h[0]=0.9;
+  this.ir=h; this.irPos=0; this.irBufL=new Float32Array(K*2); this.irBufR=new Float32Array(K*2);
+};
+HeadphoneSurround.prototype.process=function(L,R,n){
+  var i, amt=this.amt;
+  var bufL=this.bufL, bufR=this.bufR, pL=this.posL, pR=this.posR, ds=this.delayS;
+  var lpL=this.lpL, lpR=this.lpR;
+  if(this.mode==='crossfeed'){
+    for(i=0;i<n;i++){
+      var lpR1=lpR.process(R[i]);
+      bufR[pR]=lpR1;
+      var idxR=(pR+ds)%bufR.length;
+      var cfR=bufR[idxR]*amt*0.35;
+      pR++; if(pR>=bufR.length){pR=0;}
+      var lpL1=lpL.process(L[i]);
+      bufL[pL]=lpL1;
+      var idxL=(pL+ds)%bufL.length;
+      var cfL=bufL[idxL]*amt*0.35;
+      pL++; if(pL>=bufL.length){pL=0;}
+      L[i]+=cfL; R[i]+=cfR;
+    }
+  } else {
+    var ir=this.ir, K=ir.length, ibL=this.irBufL, ibR=this.irBufR, ip=this.irPos;
+    for(i=0;i<n;i++){
+      var tail=ip+K*2-1; if(tail>=K*2){tail-=K*2;}
+      ibR[tail]=R[i]; ibL[tail]=L[i];
+      var accL=0, accR=0, idx=tail, k;
+      for(k=0;k<K;k++){
+        accL+=ibR[idx]*ir[k];
+        accR+=ibL[idx]*ir[k];
+        idx--; if(idx<0){idx=K*2-1;}
+      }
+      ip++; if(ip>=K*2){ip=0;}
+      L[i]+=accL*amt*0.5; R[i]+=accR*amt*0.5;
+    }
+    this.irPos=ip;
+  }
+  this.posL=pL; this.posR=pR;
+};
+
+/* ---------------- Clarity (动态高频补偿) ---------------- */
+function Clarity(){ this.env=0; }
+Clarity.prototype.configure=function(p,fs){
+  this.hp=new Biquad(); this.hp.hp2(p.freq,fs);
+  this.amt=Math.pow(10,p.amt/20)-1; this.thrLin=Math.pow(10,p.thr/20);
+  this.att=Math.exp(-1/(fs*0.002)); this.rel=Math.exp(-1/(fs*0.08));
+};
+Clarity.prototype.process=function(L,R,n){
+  var i, env=this.env, hp=this.hp, amt=this.amt, thr=this.thrLin;
+  for(i=0;i<n;i++){
+    var hb=hp.process(L[i]), a=Math.abs(hb);
+    var coef=a>env?this.att:this.rel;
+    env=coef*env+(1-coef)*a;
+    var g=amt*Math.max(0,1-env/thr);
+    L[i]+=hb*g;
+    var hb2=hp.process(R[i]), a2=Math.abs(hb2);
+    coef=a2>env?this.att:this.rel;
+    env=coef*env+(1-coef)*a2;
+    R[i]+=hb2*(amt*Math.max(0,1-env/thr));
+  }
+  this.env=env;
+};
+
+/* ---------------- UltrasonicFilter (4 阶 Butterworth 低通) ---------------- */
+function UltrasonicFilter(){}
+UltrasonicFilter.prototype.configure=function(f,fs){
+  this.f0=new Biquad(); this.f0.lp2(f,fs);
+  this.f1=new Biquad(); this.f1.lp2(f,fs);
+};
+UltrasonicFilter.prototype.process=function(L,R,n){
+  var i;
+  for(i=0;i<n;i++){ L[i]=this.f1.process(this.f0.process(L[i])); R[i]=this.f1.process(this.f0.process(R[i])); }
+};
+
+/* ---------------- TubeSim (双级 tanh 饱和) ---------------- */
+function TubeSim(){}
+TubeSim.prototype.configure=function(p,fs){
+  this.drive=p.drive; this.bias=p.bias; this.mix=p.mix/100;
+  this.norm=1/Math.max(1e-3,Math.tanh(this.drive+Math.abs(this.bias)*0.4));
+};
+TubeSim.prototype.process=function(L,R,n){
+  var i, dr=this.drive, bias=this.bias, mix=this.mix, norm=this.norm;
+  for(i=0;i<n;i++){
+    var a=L[i], v=Math.tanh(dr*a+bias), w=Math.tanh(v*1.4+bias*0.5)*norm;
+    L[i]=a*(1-mix)+w*mix;
+    var b=R[i], v2=Math.tanh(dr*b+bias), w2=Math.tanh(v2*1.4+bias*0.5)*norm;
+    R[i]=b*(1-mix)+w2*mix;
+  }
+};
+
+/* ---------------- FDNReverb (8 通道 Householder FDN) ---------------- */
+function FDNReverb(){}
+FDNReverb.prototype.configure=function(p,fs){
+  var base=[0.0297,0.0371,0.0411,0.0437,0.0503,0.0539,0.0587,0.0613];
+  this.delays=[]; this.bufs=[]; this.poss=new Int32Array(8); this.gains=new Float32Array(8);
+  this.damps=[]; var i;
+  for(i=0;i<8;i++){
+    var d=Math.max(8,Math.round(base[i]*p.size*fs));
+    this.delays.push(d);
+    this.bufs.push(new Float32Array(d));
+    var g=Math.pow(10,-3*(d/fs)/p.t60);
+    this.gains[i]=g;
+    var dp=new Biquad(); dp.onepole(p.damp,fs); this.damps.push(dp);
+  }
+  this.preS=Math.max(0,Math.round(p.pre/1000*fs));
+  this.preBuf=new Float32Array(this.preS+2); this.prePos=0;
+  this.wet=p.wet/100;
+  this.outG=0.25; this.inG=0.28;
+  this.taps=new Float32Array(8); this.fb=new Float32Array(8);
+};
+FDNReverb.prototype.process=function(L,R,n){
+  var i,k, wet=this.wet, outG=this.outG, inG=this.inG;
+  var preBuf=this.preBuf, prePos=this.prePos, preS=this.preS;
+  var taps=this.taps, fb=this.fb, poss=this.poss, gains=this.gains;
+  var bufs=this.bufs, damps=this.damps;
+  for(i=0;i<n;i++){
+    /* 预延迟 (环形, 先读后写) */
+    var srcL=L[i], srcR=R[i], dL=srcL, dR=srcR;
+    if(preS>0){
+      var r=(prePos+preS)%preBuf.length;
+      dL=preBuf[r]; dR=preBuf[(r+1)%preBuf.length];
+      preBuf[prePos]=srcL; preBuf[(prePos+1)%preBuf.length]=srcR;
+      prePos=(prePos+2)%preBuf.length;
+    }
+    /* 读抽头 + 阻尼 */
+    var sum=0;
+    for(k=0;k<8;k++){
+      var t=bufs[k][poss[k]];
+      t=damps[k].process(t);
+      taps[k]=t; sum+=t;
+    }
+    /* Householder 反馈: H = I - (2/8)·J */
+    for(k=0;k<8;k++){
+      fb[k]=(taps[k]-0.25*sum)*gains[k];
+    }
+    /* 写入 + 输入注入 */
+    for(k=0;k<8;k++){
+      var inj=(k<4?dL:dR)*inG;
+      bufs[k][poss[k]]=fb[k]+inj;
+      var np=poss[k]+1; if(np>=bufs[k].length){np=0;} poss[k]=np;
+    }
+    /* 输出: 偶线→L, 奇线→R */
+    var oL=(taps[0]+taps[2]+taps[4]+taps[6])*outG;
+    var oR=(taps[1]+taps[3]+taps[5]+taps[7])*outG;
+    L[i]=srcL*(1-wet)+oL*wet;
+    R[i]=srcR*(1-wet)+oR*wet;
+  }
+  this.prePos=prePos;
+};
+
+/* ---------------- Peak Normalize (联合峰值, -0.01 dBFS) ---------------- */
+function jointPeak(L,R,n){
+  var i,p=0;
+  for(i=0;i<n;i++){ var a=Math.abs(L[i]),b=Math.abs(R[i]); if(a>p){p=a;} if(b>p){p=b;} }
+  return p;
+}
+function normalizeTo(L,R,n,targetDb){
+  var p=jointPeak(L,R,n);
+  if(p<=0){ return -Infinity; }
+  var g=Math.pow(10,targetDb/20)/p, i;
+  for(i=0;i<n;i++){ L[i]*=g; R[i]*=g; }
+  return 20*Math.log10(p);
+}
+
+/* ---------------- Watermark (LFSR-32 扩频 + BPSK LSB) ---------------- */
+function Watermark(){}
+Watermark.prototype.configure=function(msg,depth,bits){
+  var bytes=[];
+  for(var i=0;i<msg.length;i++){
+    var c=msg.charCodeAt(i);
+    if(c<128){ bytes.push(c); } else { bytes.push(c&0xff); }
+  }
+  if(bytes.length>30){ bytes=bytes.slice(0,30); }
+  var bitsArr=[];
+  function pushByte(b){ for(var k=7;k>=0;k--){ bitsArr.push((b>>k)&1); } }
+  pushByte(bytes.length);
+  var ck=0, j;
+  for(j=0;j<bytes.length;j++){ pushByte(bytes[j]); ck^=bytes[j]; }
+  pushByte(ck);
+  this.bits=bitsArr;
+  this.chips=[];
+  var s=0x9E3779B9>>>0, bi;
+  for(j=0;j<bitsArr.length;j++){
+    for(bi=0;bi<64;bi++){
+      s^=s<<13;s>>>=0;s^=s>>17;s^=s<<5;s>>>=0;
+      var pn=(s&1)?1:-1;
+      this.chips.push((bitsArr[j]?1:-1)*pn);
+    }
+  }
+  var lsb=Math.pow(2,1-bits);
+  this.amp=lsb*depth*0.9;
+};
+Watermark.prototype.apply=function(L,R,n){
+  var c=this.chips, cl=c.length, amp=this.amp, i;
+  for(i=0;i<n;i++){
+    var v=c[i%cl]*amp;
+    L[i]+=v; R[i]+=v;
+  }
+};
+
+/* ---------------- WAV 编码 (RIFF/WAVE + INFO/ICMT/ISFT) ---------------- */
+function strBytes(s){
+  var out=[];
+  for(var i=0;i<s.length;i++){
+    var c=s.charCodeAt(i);
+    if(c<128){ out.push(c); } else if(c<2048){ out.push(192+(c>>6),128+(c&63)); }
+    else { out.push(224+(c>>12),128+((c>>6)&63),128+(c&63)); }
+  }
+  return out;
+}
+function infoChunk(id,text){
+  var b=strBytes(text);
+  if(b.length%2){ b.push(0); }
+  var out=[];
+  out.push(id.charCodeAt(0),id.charCodeAt(1),id.charCodeAt(2),id.charCodeAt(3));
+  out.push(b.length&255,(b.length>>8)&255,(b.length>>16)&255,(b.length>>24)&255);
+  for(var i=0;i<b.length;i++){ out.push(b[i]); }
+  return out;
+}
+function buildInfo(meta){
+  var body=[73,78,70,79]; /* 'INFO' */
+  body=body.concat(infoChunk('INAM',meta.name));
+  body=body.concat(infoChunk('ICMT',meta.comment));
+  body=body.concat(infoChunk('ISFT',meta.software));
+  if(body.length%2){ body.push(0); }
+  return body;
+}
+function encodeWav(L,R,fs,bits,meta){
+  var n=L.length, ch=2, bp=bits/8, align=ch*bp, dataSize=n*align;
+  var info=buildInfo(meta);
+  var riffSize=36+dataSize+8+info.length;
+  var buf=new ArrayBuffer(8+riffSize);
+  var dv=new DataView(buf), o=0;
+  function wstr(s){ for(var i=0;i<4;i++){ dv.setUint8(o++,s.charCodeAt(i)); } }
+  wstr('RIFF'); dv.setUint32(o,riffSize,true); o+=4; wstr('WAVE');
+  wstr('fmt '); dv.setUint32(o,16,true); o+=4;
+  dv.setUint16(o,bits===32?3:1,true); o+=2;
+  dv.setUint16(o,ch,true); o+=2;
+  dv.setUint32(o,fs,true); o+=4;
+  dv.setUint32(o,fs*align,true); o+=4;
+  dv.setUint16(o,align,true); o+=2;
+  dv.setUint16(o,bits,true); o+=2;
+  wstr('data'); dv.setUint32(o,dataSize,true); o+=4;
+  var i;
+  if(bits===32){
+    for(i=0;i<n;i++){ dv.setFloat32(o,L[i],true); o+=4; dv.setFloat32(o,R[i],true); o+=4; }
+  } else if(bits===16){
+    for(i=0;i<n;i++){
+      var a=Math.max(-1,Math.min(1,L[i]))*32767, b=Math.max(-1,Math.min(1,R[i]))*32767;
+      dv.setInt16(o,a<0?Math.ceil(a):Math.round(a),true); o+=2;
+      dv.setInt16(o,b<0?Math.ceil(b):Math.round(b),true); o+=2;
+    }
+  } else { /* 24-bit */
+    for(i=0;i<n;i++){
+      var a2=Math.max(-1,Math.min(1,L[i]))*8388607, b2=Math.max(-1,Math.min(1,R[i]))*8388607;
+      var ia=a2<0?Math.ceil(a2):Math.round(a2), ib=b2<0?Math.ceil(b2):Math.round(b2);
+      dv.setUint8(o,ia&255); dv.setUint8(o+1,(ia>>8)&255); dv.setUint8(o+2,(ia>>16)&255); o+=3;
+      dv.setUint8(o,ib&255); dv.setUint8(o+1,(ib>>8)&255); dv.setUint8(o+2,(ib>>16)&255); o+=3;
+    }
+  }
+  wstr('LIST'); dv.setUint32(o,info.length,true); o+=4;
+  for(i=0;i<info.length;i++){ dv.setUint8(o,info[i]); o++; }
+  return buf;
+}
+
+/* ---------------- FFT + 预览 ---------------- */
+function fft(re,im){
+  var n=re.length, i,j;
+  for(i=1,j=0;i<n;i++){
+    var bit=n>>1;
+    for(;j&bit;bit>>=1){ j^=bit; }
+    j^=bit;
+    if(i<j){ var tr=re[i]; re[i]=re[j]; re[j]=tr; var ti=im[i]; im[i]=im[j]; im[j]=ti; }
+  }
+  for(var len=2;len<=n;len<<=1){
+    var ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
+    for(i=0;i<n;i+=len){
+      var cr=1,ci=0;
+      for(j=0;j<len/2;j++){
+        var uRe=re[i+j],uIm=im[i+j];
+        var vRe=re[i+j+len/2]*cr-im[i+j+len/2]*ci;
+        var vIm=re[i+j+len/2]*ci+im[i+j+len/2]*cr;
+        re[i+j]=uRe+vRe; im[i+j]=uIm+vIm;
+        re[i+j+len/2]=uRe-vRe; im[i+j+len/2]=uIm-vIm;
+        var t=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=t;
+      }
+    }
+  }
+}
+function makePreview(L,R,n,fs){
+  /* 波形: 每通道 720 桶 min/max */
+  var W=720, wave={l:[],r:[]};
+  var step=Math.max(1,n/W), i;
+  for(i=0;i<W;i++){
+    var s=i*step, e=Math.min(n,s+step), mn=0,mx=0,mn2=0,mx2=0,k;
+    for(k=s;k<e;k++){ var a=L[k]; if(a<mn){mn=a;} if(a>mx){mx=a;} var b=R[k]; if(b<mn2){mn2=b;} if(b>mx2){mx2=b;} }
+    wave.l.push([mn,mx]); wave.r.push([mn2,mx2]);
+  }
+  /* 频谱: 首段 8192 窗 + Hann + log 分箱 */
+  var N=8192, seg=new Float32Array(N);
+  for(i=0;i<N;i++){ seg[i]=(i<n?(L[i]+R[i])*0.5:0)*(0.5-0.5*Math.cos(2*Math.PI*i/(N-1))); }
+  var re=new Float32Array(N), im=new Float32Array(N);
+  re.set(seg);
+  fft(re,im);
+  var spec=[], fMin=20, fMax=fs/2, bins=110;
+  for(i=0;i<bins;i++){
+    var f=fMin*Math.pow(fMax/fMin,i/(bins-1));
+    var bin=Math.round(f/N*fs);
+    var m2=0, k2;
+    for(k2=Math.max(1,bin-1);k2<=Math.min(N/2,bin+1);k2++){ var m=re[k2]*re[k2]+im[k2]*im[k2]; if(m>m2){m2=m;} }
+    var db=20*Math.log10(Math.sqrt(m2)+1e-12);
+    spec.push({f:f,db:db});
+  }
+  return {wave:wave,spec:spec,N:N};
+}
+
+/* ---------------- 总渲染入口 ---------------- */
+function renderIR(cfg,onProgress){
+  var fs=cfg.sampleRate, n=Math.round(fs*cfg.length);
+  var BLOCK=8192, nBlocks=Math.ceil(n/BLOCK), b, i, off, cnt;
+  var total=nBlocks*2;
+  function prog(done){ if(onProgress){ onProgress({done:done,total:total}); } }
+  var x=new Float32Array(n);
+  x[0]=cfg.impulseAmp;
+
+  /* --- 单声道段: EQ → COMP → BASS --- */
+  var eq=null, comp=null, bass=null;
+  if(cfg.eq.en){ eq=new GraphicEQ(fs); eq.setGains(cfg.eq.gains,cfg.eq.autoTrim); }
+  if(cfg.comp.en){ comp=new Compressor(); comp.configure(cfg.comp,fs); }
+  if(cfg.bass.en){ bass=new SuperBass(); bass.configure(cfg.bass,fs); }
+  var mono=new Float32Array(n);
+  var tmp=new Float32Array(BLOCK), tmp2=new Float32Array(BLOCK);
+  for(b=0;b<nBlocks;b++){
+    off=b*BLOCK; cnt=Math.min(BLOCK,n-off);
+    var src=x.subarray(off,off+cnt), dst=mono.subarray(off,off+cnt);
+    for(i=0;i<cnt;i++){ dst[i]=src[i]; }
+    if(eq){ for(i=0;i<cnt;i++){ dst[i]=eq.process(dst[i]); } }
+    if(comp){ comp.processBlock(dst,dst,cnt); }
+    if(bass){
+      for(i=0;i<cnt;i++){ tmp[i]=dst[i]; }
+      bass.processBlock(tmp,dst,cnt);
+    }
+    prog(b);
+  }
+
+  /* --- 立体声段: SUR3D → HP-SUR → CLARITY → ULTRA → TUBE → FDN --- */
+  var L=new Float32Array(n), R=new Float32Array(n);
+  var sur=null,hps=null,clar=null,ultra=null,tube=null,fdn=null;
+  if(cfg.sur.en){ sur=new Surround3D(); sur.configure(cfg.sur,fs); }
+  if(cfg.hps.en){ hps=new HeadphoneSurround(); hps.configure(cfg.hps,fs); }
+  if(cfg.clar.en){ clar=new Clarity(); clar.configure(cfg.clar,fs); }
+  if(cfg.ultra.en){ ultra=new UltrasonicFilter(); ultra.configure(cfg.ultra.freq,fs); }
+  if(cfg.tube.en){ tube=new TubeSim(); tube.configure(cfg.tube,fs); }
+  if(cfg.fdn.en){ fdn=new FDNReverb(); fdn.configure(cfg.fdn,fs); }
+  for(b=0;b<nBlocks;b++){
+    off=b*BLOCK; cnt=Math.min(BLOCK,n-off);
+    var mSrc=mono.subarray(off,off+cnt);
+    var oL=L.subarray(off,off+cnt), oR=R.subarray(off,off+cnt);
+    if(sur){ sur.process(mSrc,cnt,tmp,tmp2); for(i=0;i<cnt;i++){ oL[i]=tmp[i]; oR[i]=tmp2[i]; } }
+    else { for(i=0;i<cnt;i++){ oL[i]=mSrc[i]; oR[i]=mSrc[i]; } }
+    if(hps){ hps.process(oL,oR,cnt); }
+    if(clar){ clar.process(oL,oR,cnt); }
+    if(ultra){ ultra.process(oL,oR,cnt); }
+    if(tube){ tube.process(oL,oR,cnt); }
+    if(fdn){ fdn.process(oL,oR,cnt); }
+    prog(nBlocks+b);
+  }
+
+  /* --- 归一化 + 水印 --- */
+  var peakBefore=jointPeak(L,R,n);
+  var peakDb, peakInDb=20*Math.log10(peakBefore+1e-12);
+  if(cfg.norm.en){ normalizeTo(L,R,n,-0.01); peakDb=20*Math.log10(jointPeak(L,R,n)+1e-12); }
+  else { peakDb=peakInDb; }
+  if(cfg.wmk.en){ wmApply(cfg,L,R,n); }
+  var rmsSq=0;
+  for(i=0;i<n;i++){ rmsSq+=L[i]*L[i]+R[i]*R[i]; }
+  rmsSq/= (n*2);
+  var rmsDb=10*Math.log10(rmsSq+1e-14);
+
+  /* --- 元数据 + 编码 --- */
+  var meta={ name:cfg.filename+'.wav', software:'RlonMusic DSP-IR 1200 v1.0', comment:cfg.comment };
+  var wav=encodeWav(L,R,fs,cfg.bits,meta);
+  var preview=makePreview(L,R,n,fs);
+  prog(total);
+  return { wav:wav, stats:{peakDb:peakDb,peakInDb:peakInDb,rmsDb:rmsDb,len:n,fs:fs,bits:cfg.bits}, preview:preview };
+}
+function wmApply(cfg,L,R,n){
+  var wm=new Watermark();
+  wm.configure(cfg.wmk.msg,cfg.wmk.depth,cfg.bits);
+  wm.apply(L,R,n);
+}
+</script>
+
+<script>
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s);};
+var $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s));};
+
+/* ---------------- VU 表 ---------------- */
+(function(){
+  var vu=$('#vu');
+  for(var i=0;i<12;i++){ var b=document.createElement('i'); vu.appendChild(b); }
+  var segs=vu.children;
+  var timer=null, idle=0;
+  function setLevel(p){
+    var lit=Math.round(p/100*12);
+    for(var i=0;i<12;i++){ segs[i].className=(i<lit? 'lit':(i<lit+1?'hot':'')); }
+  }
+  function idleLoop(){
+    idle++;
+    var v=(Math.sin(idle*0.11)*0.5+0.5);
+    setLevel(v*18);
+    timer=setTimeout(idleLoop,120);
+  }
+  idleLoop();
+  window.__vuSet=function(p){ if(timer){clearTimeout(timer);timer=null;} setLevel(p); };
+  window.__vuIdle=function(){ if(!timer){ idleLoop(); } };
+})();
+
+/* ---------------- LCD 数值绑定 ---------------- */
+var FMT={
+  'in-amp':function(v){return v.toFixed(1)+' dB';},
+  'comp-thr':function(v){return v.toFixed(0)+' dB';},
+  'comp-ratio':function(v){return v.toFixed(1)+' :1';},
+  'comp-att':function(v){return v.toFixed(1)+' ms';},
+  'comp-rel':function(v){return v.toFixed(0)+' ms';},
+  'comp-knee':function(v){return v.toFixed(0)+' dB';},
+  'comp-mu':function(v){return 'AUTO'+(v>=0?'+':'')+v.toFixed(1);},
+  'bass-xo':function(v){return v.toFixed(0)+' Hz';},
+  'bass-dr':function(v){return v.toFixed(1);},
+  'bass-mix':function(v){return v.toFixed(0)+' %';},
+  'sur-w':function(v){return v.toFixed(0)+' %';},
+  'sur-del':function(v){return v.toFixed(1)+' ms';},
+  'sur-ap':function(v){return v.toFixed(0)+' %';},
+  'sur-mix':function(v){return v.toFixed(0)+' %';},
+  'hps-amt':function(v){return v.toFixed(0)+' %';},
+  'hps-fr':function(v){return v.toFixed(0)+' Hz';},
+  'hps-del':function(v){return v.toFixed(2)+' ms';},
+  'clar-amt':function(v){return v.toFixed(1)+' dB';},
+  'clar-thr':function(v){return v.toFixed(0)+' dB';},
+  'clar-fr':function(v){return v.toFixed(0)+' Hz';},
+  'ultra-fr':function(v){return v.toFixed(0)+' Hz';},
+  'tube-dr':function(v){return v.toFixed(1);},
+  'tube-bias':function(v){return v.toFixed(2);},
+  'tube-mix':function(v){return v.toFixed(0)+' %';},
+  'fdn-pre':function(v){return v.toFixed(0)+' ms';},
+  'fdn-size':function(v){return v.toFixed(2);},
+  'fdn-t60':function(v){return v.toFixed(1)+' s';},
+  'fdn-damp':function(v){return v.toFixed(0)+' Hz';},
+  'fdn-wet':function(v){return v.toFixed(0)+' %';},
+  'wmk-depth':function(v){return v.toFixed(0)+' LSB';}
+};
+Object.keys(FMT).forEach(function(id){
+  var el=document.getElementById(id), lcd=document.getElementById('lcd-'+id);
+  if(!el||!lcd){ return; }
+  function upd(){ lcd.textContent=FMT[id](parseFloat(el.value)); }
+  el.addEventListener('input',upd); upd();
+});
+/* EQ 推子数值 */
+$$('#eq-bands input').forEach(function(f){
+  var lcd=document.getElementById('eqv-'+f.dataset.band);
+  function upd(){ var v=parseFloat(f.value); lcd.textContent=(v>0?'+':'')+v.toFixed(1); }
+  f.addEventListener('input',upd); upd();
+});
+
+/* ---------------- 链图 / 旁通联动 ---------------- */
+var BYPASS_MODS=['eq','comp','bass','sur','hps','clar','ultra','tube','fdn','norm','wmk'];
+function syncChip(mod){
+  var chip=document.querySelector('.chip[data-mod="'+mod+'"]');
+  var box=document.getElementById(mod+'-en');
+  if(!chip||!box){ return; }
+  var on=box.checked;
+  chip.classList.toggle('on',on);
+  chip.classList.toggle('off',!on);
+}
+function refreshChain(){
+  var active=2;
+  BYPASS_MODS.forEach(function(m){ if(document.getElementById(m+'-en').checked){ active++; } });
+  $('#lcd-chain').textContent=active+' / 13 STAGES ACTIVE';
+}
+$$('.rock').forEach(function(r){
+  r.addEventListener('change',function(){
+    var mod=r.id.replace('-en','');
+    if(BYPASS_MODS.indexOf(mod)>=0){ syncChip(mod); refreshChain(); }
+  });
+});
+$$('.chip[data-mod]').forEach(function(chip){
+  chip.addEventListener('click',function(){
+    var m=chip.dataset.mod;
+    var box=document.getElementById(m+'-en');
+    if(!box){ flash('STAGE '+m.toUpperCase()+' — FIXED, 无旁通'); return; }
+    box.checked=!box.checked;
+    box.dispatchEvent(new Event('change'));
+  });
+});
+
+/* ---------------- 头部状态 ---------------- */
+function refreshHead(){
+  var fs=$('#in-rate').value, len=$('#in-len').value, bits=$('#in-bits').value;
+  $('#lcd-rate').textContent=fs+' Hz';
+  $('#lcd-len').textContent=parseFloat(len).toFixed(2)+' s / '+bits+' bit';
+}
+['in-rate','in-len','in-bits'].forEach(function(id){
+  document.getElementById(id).addEventListener('change',refreshHead);
+});
+refreshChain(); refreshHead();
+
+/* ---------------- 配置收集 ---------------- */
+function collectConfig(){
+  function val(id){ return parseFloat(document.getElementById(id).value); }
+  function on(id){ return document.getElementById(id).checked; }
+  var gains=[];
+  $$('#eq-bands input').forEach(function(f){ gains.push(parseFloat(f.value)); });
+  var fs=val('in-rate'), bits=val('in-bits'), len=val('in-len');
+  var msg=($('#wmk-msg').value||'RLONMUSIC').replace(/[^\x00-\xff\w\u4e00-\u9fa5 -]/g,'').slice(0,24);
+  var comment='CHAIN:IMPULSE>EQ9>COMP>BASS>SUR3D>HPSUR>CLARITY>ULTRA>TUBE>FDN>NORM>WMK | '
+    +fs+'Hz/'+bits+'bit | EQ:['+gains.join(',')+'] | COMP:T'+val('comp-thr')+'dB R'+val('comp-ratio')+':1 | '
+    +'BASS:XO'+val('bass-xo')+'Hz '+$('#bass-mode').value+' | FDN:T60 '+val('fdn-t60')+'s WET'+val('fdn-wet')+'% | WMK:'+msg;
+  var fname='dsp-ir-'+Math.round(fs/1000)+'k-'+bits+'bit-'+parseFloat(len)+'s';
+  return {
+    sampleRate:fs, bits:bits, length:len, impulseAmp:Math.pow(10,val('in-amp')/20),
+    eq:{en:on('eq-en'),gains:gains,autoTrim:on('eq-trim')},
+    comp:{en:on('comp-en'),thr:val('comp-thr'),ratio:val('comp-ratio'),att:val('comp-att'),rel:val('comp-rel'),knee:val('comp-knee'),mu:val('comp-mu'),autoMu:true,sc:on('comp-sc')},
+    bass:{en:on('bass-en'),xo:val('bass-xo'),drive:val('bass-dr'),mode:$('#bass-mode').value,mix:val('bass-mix')/100,env:on('bass-env')},
+    sur:{en:on('sur-en'),width:val('sur-w'),delay:val('sur-del'),ap:val('sur-ap'),mix:val('sur-mix')},
+    hps:{en:on('hps-en'),mode:$('#hps-mode').value,amt:val('hps-amt'),freq:val('hps-fr'),delay:val('hps-del')},
+    clar:{en:on('clar-en'),amt:val('clar-amt'),thr:val('clar-thr'),freq:val('clar-fr')},
+    ultra:{en:on('ultra-en'),freq:val('ultra-fr')},
+    tube:{en:on('tube-en'),drive:val('tube-dr'),bias:val('tube-bias'),mix:val('tube-mix')},
+    fdn:{en:on('fdn-en'),pre:val('fdn-pre'),size:val('fdn-size'),t60:val('fdn-t60'),damp:val('fdn-damp'),wet:val('fdn-wet')},
+    norm:{en:on('norm-en')},
+    wmk:{en:on('wmk-en'),msg:msg,depth:val('wmk-depth')},
+    filename:fname, comment:comment
+  };
+}
+
+/* ---------------- 渲染编排 ---------------- */
+var busy=false, worker=null, lastWav=null, lastStats=null, lastPreview=null;
+var btnRender=$('#btn-render'), ledRender=$('#led-render');
+var pfill=$('#pfill'), ppct=$('#ppct'), pmsg=$('#pmsg'), pwrTxt=$('#pwr-txt'), ledPwr=$('#pwr');
+function setProg(done,total){
+  var pct=Math.min(100,Math.round(done/total*100));
+  pfill.style.width=pct+'%';
+  ppct.textContent=('0'+pct).slice(-2)+' %';
+  pmsg.textContent=done<total?(done<total/2?'RENDERING MONO STAGE…':'RENDERING STEREO STAGE…'):'ENCODING + WATERMARK…';
+  window.__vuSet(pct);
+}
+function flash(msg){
+  var old=pmsg.textContent;
+  pmsg.textContent=msg;
+  setTimeout(function(){ if(!busy){ pmsg.textContent=old; } },2600);
+}
+function uiState(s){
+  if(s==='render'){
+    btnRender.disabled=true; ledRender.className='led red on blink';
+    pfill.style.width='0%'; ppct.textContent='00 %';
+    pmsg.textContent='INITIALIZING DSP CHAIN…';
+    pwrTxt.textContent='RENDER';
+    document.title='⏳ RENDERING… · RLONMUSIC DSP-IR';
+  } else if(s==='done'){
+    btnRender.disabled=false; ledRender.className='led green on';
+    pmsg.textContent='RENDER COMPLETE — 文件已就绪';
+    pwrTxt.textContent='READY';
+    window.__vuSet(100); setTimeout(window.__vuIdle,900);
+    document.title='✅ DONE · RLONMUSIC DSP-IR';
+  } else {
+    btnRender.disabled=false; ledRender.className='led red on';
+    pwrTxt.textContent='ERROR';
+    document.title='❌ ERROR · RLONMUSIC DSP-IR';
+    window.__vuIdle();
+  }
+}
+/* 硬件风格快捷键: R 渲染 / D 下载 / P 试听 */
+document.addEventListener('keydown',function(e){
+  var t=(e.target&&e.target.tagName)||'';
+  if(t==='INPUT'||t==='SELECT'||t==='TEXTAREA'){ return; }
+  var k=(e.key||'').toLowerCase();
+  if(k==='r'){ e.preventDefault(); startRender(); }
+  else if(k==='d'&&lastWav){ e.preventDefault(); $('#btn-dl').click(); }
+  else if(k==='p'&&lastWav){ e.preventDefault(); $('#btn-play').click(); }
+});
+var WORKER_GLUE='\nself.onmessage=function(e){try{var r=renderIR(e.data,function(p){self.postMessage({type:"progress",done:p.done,total:p.total});});self.postMessage({type:"done",wav:r.wav,stats:r.stats,preview:r.preview},[r.wav]);}catch(err){self.postMessage({type:"error",msg:String((err&&err.stack)||err)});}};';
+
+function startRender(){
+  if(busy){ return; }
+  busy=true; uiState('render');
+  var cfg=collectConfig();
+  var coreSrc=document.getElementById('dsp-core').textContent;
+  var w=null, guard=null;
+  try{
+    var blob=new Blob([coreSrc+WORKER_GLUE],{type:'application/javascript'});
+    w=new Worker(URL.createObjectURL(blob));
+  }catch(e){ runSync(cfg); return; }
+  worker=w;
+  guard=setTimeout(function(){
+    if(worker){ worker.terminate(); worker=null; runSync(cfg); }
+  },240000);
+  w.onmessage=function(ev){
+    var d=ev.data;
+    if(d.type==='progress'){ setProg(d.done,d.total); }
+    else if(d.type==='done'){ clearTimeout(guard); w.terminate(); worker=null; busy=false; finish(d); }
+    else if(d.type==='error'){ clearTimeout(guard); w.terminate(); worker=null; busy=false; fail(d.msg); }
+  };
+  w.onerror=function(){
+    clearTimeout(guard);
+    if(worker){ worker.terminate(); worker=null; }
+    runSync(cfg);
+  };
+  w.postMessage(cfg);
+}
+function runSync(cfg){
+  var coreSrc=document.getElementById('dsp-core').textContent;
+  var fn;
+  try{ fn=new Function(coreSrc+'\nreturn renderIR;'); }
+  catch(e){ busy=false; fail('DSP CORE 解析失败: '+e.message); return; }
+  var renderIR=fn();
+  try{
+    var r=renderIR(cfg,function(p){ setProg(p.done,p.total); });
+    busy=false; finish(r);
+  }catch(err){ busy=false; fail(String((err&&err.stack)||err)); }
+}
+function fail(msg){
+  uiState('fail');
+  pfill.style.width='100%'; pfill.style.background='repeating-linear-gradient(90deg,#8a1e1e 0 10px,#b33 10px 20px)';
+  ppct.textContent='ERR';
+  pmsg.textContent='ERROR: '+(msg||'unknown').slice(0,110);
+}
+
+/* ---------------- 结果展示 ---------------- */
+function finish(d){
+  uiState('done');
+  lastWav=d.wav; lastStats=d.stats; lastPreview=d.preview;
+  var fname=($('#wmk-msg').value||'dsp-ir').replace(/\s+/g,'-')+'-ir-'+Math.round(d.stats.fs/1000)+'k-'+d.stats.bits+'bit.wav';
+  $('#result').classList.add('show');
+  $('#st-file').textContent=fname;
+  $('#st-fmt').textContent=d.stats.fs+' Hz · '+d.stats.bits+' bit · STEREO';
+  var normOn=document.getElementById('norm-en').checked;
+  $('#st-peak').textContent=d.stats.peakDb.toFixed(2)+' dBFS'+(normOn?' (PRE '+d.stats.peakInDb.toFixed(1)+')':'');
+  $('#st-rms').textContent=d.stats.rmsDb.toFixed(2)+' dBFS';
+  $('#st-dur').textContent=(d.stats.len/d.stats.fs).toFixed(3)+' s · '+d.stats.len.toLocaleString()+' smp';
+  $('#g1-info').textContent=d.stats.fs+' Hz · L/R 波形 (min/max 包络)';
+  $('#g2-info').textContent='HANN · 8192 FFT · 20 Hz – '+(d.stats.fs/2/1000).toFixed(1)+' kHz';
+  drawWave(d.preview.wave);
+  drawSpec(d.preview.spec, d.stats.fs);
+}
+function drawWave(wave){
+  var cv=$('#cv-wave'), w=cv.clientWidth||640, h=cv.clientHeight||118;
+  var dpr=window.devicePixelRatio||1;
+  cv.width=w*dpr; cv.height=h*dpr;
+  var ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  var mid=h/2, mx=1e-9, i;
+  function maxOf(arr){ for(var k=0;k<arr.length;k++){ var a=arr[k]; if(Math.abs(a[0])>mx){mx=Math.abs(a[0]);} if(Math.abs(a[1])>mx){mx=Math.abs(a[1]);} } }
+  maxOf(wave.l); maxOf(wave.r);
+  var sc=(h*0.44)/mx;
+  ctx.strokeStyle='rgba(168,255,96,.10)';
+  ctx.beginPath(); ctx.moveTo(0,mid); ctx.lineTo(w,mid); ctx.stroke();
+  ctx.strokeStyle='rgba(168,255,96,.06)';
+  [0.5,-0.5].forEach(function(f){ var y=mid+f*sc; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); });
+  function chan(arr,color){
+    ctx.strokeStyle=color; ctx.lineWidth=1; ctx.beginPath();
+    for(i=0;i<arr.length;i++){
+      var x=i/w*arr.length, y0=mid-arr[i][0]*sc, y1=mid-arr[i][1]*sc;
+      ctx.moveTo(x,y0); ctx.lineTo(x,y1);
+    }
+    ctx.stroke();
+  }
+  chan(wave.l,'rgba(255,176,0,.85)');
+  chan(wave.r,'rgba(168,255,96,.75)');
+}
+function drawSpec(spec,fs){
+  var cv=$('#cv-spec'), w=cv.clientWidth||640, h=cv.clientHeight||118;
+  var dpr=window.devicePixelRatio||1;
+  cv.width=w*dpr; cv.height=h*dpr;
+  var ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  var dBmin=-100, dBmax=10, padL=34, padR=8, padT=6, padB=14;
+  var pw=w-padL-padR, ph=h-padT-padB;
+  function X(f){ return padL+Math.log(f/20)/Math.log((fs/2)/20)*pw; }
+  function Y(db){ return padT+ (dBmax-db)/(dBmax-dBmin)*ph; }
+  /* 网格 + Y 刻度 */
+  ctx.strokeStyle='rgba(168,255,96,.10)'; ctx.fillStyle='#767b84';
+  ctx.font='8px "Share Tech Mono",monospace';
+  [-60,-30,0].forEach(function(db){
+    var y=Y(db);
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
+    ctx.fillText(db+'dB',2,y+3);
+  });
+  /* X 刻度 */
+  [20,50,100,200,500,1000,2000,5000,10000,20000].forEach(function(f){
+    if(f>fs/2){ return; }
+    var x=X(f);
+    ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,padT+ph); ctx.stroke();
+    ctx.fillText(f>=1000?(f/1000)+'k':f,x-8,h-4);
+  });
+  /* 曲线 */
+  ctx.strokeStyle='#ffb000'; ctx.lineWidth=1.2; ctx.beginPath();
+  for(var i=0;i<spec.length;i++){
+    var x=X(Math.max(20,spec[i].f)), y=Y(Math.max(dBmin,spec[i].db));
+    if(i===0){ ctx.moveTo(x,y); } else { ctx.lineTo(x,y); }
+  }
+  ctx.stroke();
+  ctx.lineTo(X(spec[spec.length-1].f),Y(dBmin)); ctx.lineTo(X(spec[0].f),Y(dBmin)); ctx.closePath();
+  ctx.fillStyle='rgba(255,176,0,.10)'; ctx.fill();
+}
+
+/* ---------------- 下载 / 试听 ---------------- */
+var dlUrl=null;
+$('#btn-dl').addEventListener('click',function(){
+  if(!lastWav){ return; }
+  var cfgName=($('#in-rate').value)+'k';
+  if(dlUrl){ URL.revokeObjectURL(dlUrl); }
+  dlUrl=URL.createObjectURL(new Blob([lastWav],{type:'audio/wav'}));
+  var a=document.createElement('a');
+  a.href=dlUrl;
+  a.download=($('#wmk-msg').value||'dsp-ir').replace(/\s+/g,'-')+'-ir-'+Math.round($('#in-rate').value/1000)+'k-'+$('#in-bits').value+'bit.wav';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  flash('DOWNLOAD: '+a.download);
+});
+var audioCtx=null, acBuffer=null;
+$('#btn-play').addEventListener('click',function(){
+  if(!lastWav){ return; }
+  try{
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended'){ audioCtx.resume(); }
+    if(!acBuffer){
+      var copy=lastWav.slice(0);
+      audioCtx.decodeAudioData(copy,function(buf){ acBuffer=buf; playBuf(); },function(){ pmsg.textContent='PLAY ERROR: 解码失败'; });
+    } else { playBuf(); }
+    function playBuf(){
+      var src=audioCtx.createBufferSource();
+      src.buffer=acBuffer;
+      var g=audioCtx.createGain(); g.gain.value=0.35;
+      src.connect(g); g.connect(audioCtx.destination);
+      src.start();
+      pmsg.textContent='PLAYBACK: 播放 IR 试听…';
+    }
+  }catch(e){ pmsg.textContent='PLAY ERROR: '+e.message; }
+});
+
+btnRender.addEventListener('click',startRender);
+})();
+</script>
+
+</body>
+</html>
